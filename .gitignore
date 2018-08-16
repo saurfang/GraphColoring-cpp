@@ -31,6 +31,7 @@
 *.exe
 *.out
 *.app
+color
 
 # CMake
 CMakeCache.txt

@@ -4,11 +4,14 @@
 #include "../Header/lmxrlf.h"
 #include "../Header/hybrid_dsatur.h"
 #include "../Header/hybrid.h"
+
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <stdlib.h>
 #include <sstream>
+
+#include <gflags/gflags.h>
 
 using std::cerr;
 using std::cout;
@@ -24,38 +27,68 @@ using GraphColoring::HybridDsatur;
 using GraphColoring::Hybrid;
 using GraphColoring::GraphColor;
 
+DEFINE_string(parse,"","Input file type (matrix,list)");
+DEFINE_string(algorithm,"","Coloring algorithm to run");
+DEFINE_string(file,"","Input file path");
+
+GraphColor* set_coloring_algorithm(map<string,vector<string>> input_graph) {
+    if(FLAGS_algorithm == "dsatur") {
+        return new Dsatur(input_graph);
+    }
+    else if(FLAGS_algorithm == "mcs") {
+        return new Mcs(input_graph);
+    }
+    else if(FLAGS_algorithm == "lmxrlf") {
+        return new Lmxrlf(input_graph);
+    }
+    else if(FLAGS_algorithm == "hybrid-dsatur") {
+        return new HybridDsatur(input_graph);
+    }
+    else if(FLAGS_algorithm == "hybrid") {
+        return new Hybrid(input_graph);
+    } else {
+        cerr << "Invalid input to the \"--algorithm=\" flag, please choose ne of the following:" << endl;
+        cerr << "\tdsatur, mcs, lmxrls, hybrid-dsatur, hybrid" << endl;
+        return NULL;
+    }
+}
+
 //functions used to translate test cases into a graph using a map
 //two types of test cases requires two ways to parse graph (list and matrix)
 vector<string> split(string to_split);
 vector< vector<string> > get_input(char* input_file);
-void parse_edge_list(char* input_file);
-void parse_edge_matrix(char* input_file);
+map<string,vector<string>> parse_edge_list(string input_file);
+map<string,vector<string>> parse_edge_matrix(string input_file);
 
-map<string,vector<string> > input_graph;
+int main(int argc, char** argv) {
 
-int main(int argc, char** argv)
-{
-    if(argc < 2) {
-        cerr << "Usage: " << argv[0] << " file_input" << endl;
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+    map<string,vector<string>> input_graph;
+    if(FLAGS_file == "") {
+        cerr << "No graph input file provided, use the \"--file=\" flag to specify an input file" << endl;
         return -1;
     }
 
-    if(argc >= 3 && string(argv[2]) == "-m") {
-        parse_edge_matrix(argv[1]);
-        if(input_graph.size() == 0) { return -2; }
-    } else if(argc >= 3 && string(argv[2]) == "-l") {
-        parse_edge_list(argv[1]);
-        if(input_graph.size() == 0) { return -2; }
+    if(FLAGS_parse == "matrix") {
+        input_graph = parse_edge_matrix(FLAGS_file);
+        if(input_graph.size() == 0) {
+            return -1;
+        }
+    } else if(FLAGS_parse == "list") {
+        input_graph = parse_edge_list(FLAGS_file);
+        if(input_graph.size() == 0) {
+            return -1;
+        }
     } else {
-        cout << "No Graph Input Type Selected" << endl;
-        cout << "Use a \"-m\" flag for edge matrix inputs" << endl;
-        cout << "Use a \"-l\" flag for edge list inputs" << endl;
-        return -1;  
+        cerr << "No graph input type selected, use one of the following" << endl;
+        cerr << "\"--parse=matrix\" for parsing edge matrix inputs" << endl;
+        cerr << "\"--parse=list\" for parsing edge list inputs" << endl;
+        return -1;
     }
 
-
-    GraphColor *graph = new HybridDsatur(input_graph);
-
+    GraphColor* graph = set_coloring_algorithm(input_graph);
+    if(!graph) { return -1; }
 
     graph->color();
     graph->print_chromatic();
@@ -117,7 +150,8 @@ vector< vector<string> > get_input(char* input_file) {
     return Input;
 }
 
-void parse_edge_list(char* input_file) {
+map<string, vector<string>> parse_edge_list(string input_file) {
+    map<string, vector<string>> input_graph;
     ifstream file(input_file);
     if(file.is_open()) {
         string line;
@@ -138,7 +172,7 @@ void parse_edge_list(char* input_file) {
         if(!flag || vertices == -3) {
             cerr << "File is missing parameter line before edge list" << endl;
             cerr << "Should be: \"p edge <number of vertices> <number of edges>\"" << endl;
-            return;
+            return map<string, vector<string>>();
         }
         for(int i=0; i<vertices; i++) {
             string pre = "v";
@@ -161,19 +195,21 @@ void parse_edge_list(char* input_file) {
                 arg2.append(words[2]);
                 vector<string> base;
                 vector<string> base2;
-        input_graph[arg1].push_back(arg2);
-        input_graph[arg2].push_back(arg1);
+                input_graph[arg1].push_back(arg2);
+                input_graph[arg2].push_back(arg1);
             }
         }
     } else {
         cerr << "Input File Not Found" << endl;
-        return;
+        return map<string, vector<string>>();
     }
+    return input_graph;
 }
 
 //Used to parse test inputs where the first line is the number of
 //vertices, and the next lines are the edge matrix
-void parse_edge_matrix(char* input_file) {
+map<string,vector<string> > parse_edge_matrix(string input_file) {
+    map<string, vector<string>> input_graph;
     string pre = "v";
 
     ifstream file(input_file);
@@ -190,7 +226,7 @@ void parse_edge_matrix(char* input_file) {
                      << words.size() << "," << n << "): " << line << endl;
                 for (unsigned i = 0;i < words.size();i++) { cerr << "\t" << words.at(i) << endl; }
                 input_graph.clear();
-                return;
+                return map<string, vector<string>>();
             }
             vector<string> edges;
             for(int j = 0; j < n; j++) {
@@ -213,12 +249,12 @@ void parse_edge_matrix(char* input_file) {
         if(i != n) {
             cerr << "Input is not the right length" << endl;
             input_graph.clear();
-            return;
+            return map<string, vector<string>>();
         }
         file.close();
     } else {
         cerr << "Input File Not Found" << endl;
-        return;
+        return map<string, vector<string>>();
     }
-    return;
+    return input_graph;
 }

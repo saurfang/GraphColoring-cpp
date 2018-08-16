@@ -6,18 +6,19 @@
 using GraphColoring::GraphColor;
 
 namespace GraphColoring{
-	class Dsatur : public GraphColor {
-		public: 
-			/* Constructors */
-			Dsatur(map<string,vector<string> > input_graph);
+    class Dsatur : public GraphColor {
+        public: 
+            /* Constructors */
+            Dsatur() : GraphColor() {}
+            Dsatur(map<string,vector<string> > input_graph);
 
-			/* Mutators */
-			void set_condition(int con);
-			map<string,int> color();
+            /* Mutators */
+            void set_condition(int con);
+            map<string,int> color();
 
-			/* Accessors */
-			string get_algorithm() { return "DSATUR"; }
-	};
+            /* Accessors */
+            string get_algorithm() { return "DSATUR"; }
+    };
 }
 
 #endif //_DSATUR_H_
